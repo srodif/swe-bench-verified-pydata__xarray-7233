@@ -318,3 +318,23 @@ def test_coarsen_construct(dask: bool) -> None:
 
     with pytest.raises(ValueError):
         ds.coarsen(time=12).construct(time=("bar",))
+
+
+def test_coarsen_construct_preserves_non_dimensional_coords():
+    """Test that non-dimensional coordinates are preserved as coordinates after coarsen.construct"""
+    # Create a DataArray with a non-dimensional coordinate
+    da = DataArray(np.arange(24), dims=["time"])
+    da = da.assign_coords(day=365 * da)  # 'day' is a non-dimensional coordinate
+    ds = da.to_dataset(name="T")
+    
+    # Perform coarsen.construct
+    result = ds.coarsen(time=4).construct(time=("year", "month"))
+    
+    # The 'day' coordinate should be preserved as a coordinate, not demoted to a data variable
+    assert 'day' in result.coords, "'day' should remain as a coordinate"
+    assert 'day' not in result.data_vars, "'day' should not be demoted to data variable"
+    assert 'T' in result.data_vars, "'T' should remain as a data variable"
+    
+    # Test the same for DataArray
+    da_result = da.coarsen(time=4).construct(time=("year", "month"))
+    assert 'day' in da_result.coords, "'day' should remain as a coordinate in DataArray"
